@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Feb  4 23:11:48 2023
+
+@author: nikhil88
+"""
+conda install -c conda-forge lifelines
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import scipy.stats as stats
+from scipy.stats import chi2_contingency
+from scipy.stats import kurtosis
+import openpyxl
+import numpy as np
+import lifelines
+from lifelines import KaplanMeierFitter
+
+#import
+file_path = 'STEMI_LVSD_data_all_NA_171022.xlsx'
+sheet_name = 'Coronary_all'
+   
+df = pd.read_excel(file_path, sheet_name=sheet_name)
+
+column_headers = df.columns.tolist()
+#print(column_headers)
+
+df['Date and time on table'] = pd.to_datetime(df['Date and time on table'], format='%Y-%m-%d %H:%M')
+df['Date of procedure'] = pd.to_datetime(df['Date of procedure'], format='%Y-%m-%d')
+df['Date-time arrival at first hospital'] = pd.to_datetime(df['Date-time arrival at first hospital'], format='%Y-%m-%d %H:%M')
+df['Date-time arrival at PCI hospital'] = pd.to_datetime(df['Date-time arrival at PCI hospital'], format='%Y-%m-%d %H:%M')
+df['Date-time of call for help (STEMI)'] = pd.to_datetime(df['Date-time of call for help (STEMI)'], format='%Y-%m-%d %H:%M')
+df['Date-time of symptom onset'] = pd.to_datetime(df['Date-time of symptom onset'], format='%Y-%m-%d %H:%M')
+df['Date/time of ECG triggering PPCI pathway'] = pd.to_datetime(df['Date/time of ECG triggering PPCI pathway'], format='%Y-%m-%d %H:%M')
+df['Presumed date and time of any arrest'] = pd.to_datetime(df['Presumed date and time of any arrest'], format='%Y-%m-%d %H:%M')
+df['Date of death'] = pd.to_datetime(df['Date of death'], format='%Y-%m-%d')
+df['BD1_Date'] = pd.to_datetime(df['BD1_Date'], format='%Y-%m-%d',errors='coerce')
+df['TTE1_Date'] = pd.to_datetime(df['TTE1_Date'], format='%Y-%m-%d', errors='coerce')
+df['TTE2_Date'] = pd.to_datetime(df['TTE2_Date'], format='%Y-%m-%d', errors='coerce')
+df['TTE3_Date'] = pd.to_datetime(df['TTE3_Date'], format='%Y-%m-%d', errors='coerce')
+df['CIED_implant_date'] = pd.to_datetime(df['CIED_implant_date'], format='%Y-%m-%d', errors='coerce')
+
+df = df.drop(columns=['GP IIb/IIIa drug(s) used during procedure', 'Indication for intervention', 'Interventions', 'Ischaemia', 'Lactate', 'Local procedure identifier', 'LV ejection fraction', 'LV ejection fraction category', 'Medical history', 'NYHA Dyspnoea Status', 'Other Therapeutic hypothermia', 'Primary operator', 'Primary operator status', 'Cath devices', 'Cath Lab number', 'CCS Angina Status', 'Cholesterol', 'Circulatory support', 'Clinical syndrome (Procedure)', 'Consultant responsible for procedure', 'Convalescent STEMI or NSTEMI', 'Coronary dominance', 'Body surface area', 'Cardiac enzymes / markers raised', 'Administrative category', 'Admission route', 'Arterial access', 'Arterial management', 'Base excess', 'Recent lysis', 'Referring Consultant Cardiologist', 'Referring hospital', 'Research procedure', 'Research title', 'Second operator', 'Second operator status', 'Serum creatinine', 'Surgical cover', 'Temporary pacing wire', 'Therapeutic hypothermia', 'Third operator', 'Third operator status', 'Training procedure', 'Ventilation', 'Weight', 'Why no IIb/IIIA during procedure', 'Angiography findings', 'Arterial complications', 'Athero-thrombus removal device(s) used', 'Bleeding up to discharge', 'Brachytherapy device(s) used', 'Consultant responsible for procedure GMC Number', 'Cx Stenosis (Angio)', 'Cx Stenosis (Post-procedure)', 'Cx Stenosis (Pre-PCI)', 'Cx stenosis comment', 'Dataset complete', 'Date of discharge / death', 'Date/Time of first balloon inflation (PCI)', 'Details of all devices implanted', 'Device failure', 'Diagnostic device(s) used during procedure', 'Diagnostic interventions undertaken', 'Discharge Management Plan and Medication changes', 'Drug(s) eluted by stent(s)', 'Emboli protection device(s) used.1', 'Enzymes PostOp', 'External cooling pads / blankets / wraps', 'Flow in IRA at Angio', 'Flow in IRA PostOp (ACS)', 'GP IIb/IIIa drug(s) used during procedure.1', 'Indication for Stent', 'Information for the patient', 'Instructions / information for the GP', 'LAD Other Stenosis (Angio)', 'LAD Other Stenosis (Post-procedure)', 'LAD Other Stenosis (Pre-PCI)', 'LAD Other stenosis comment', 'LAD Proximal Stenosis (Angio)', 'LAD Proximal Stenosis (Post-procedure)', 'LAD Proximal Stenosis (Pre-PCI)', 'LAD Proximal stenosis comment', 'Largest balloon/stent diameter', 'Left main stem protected', 'Left Main Stem Stenosis (Angio)', 'Left Main Stem Stenosis (Post-procedure)', 'Left Main Stem Stenosis (Pre-PCI)', 'Left Main stem stenosis comment', 'Longest stented / treated segment', 'Management plan', 'Number coronary grafts patent PostProcedure', 'Number grafts patent (Angio)', 'Number grafts present (Angio)', 'Number Instent stenoses attempted', 'Number of chronic occlusions attempted', 'Number of drug-eluting stents used', 'Number of lesions attempted', 'Number of lesions successful', 'Number of vessels attempted', 'Number restenoses attempted', 'Number stents used', 'Nurse led discharge', 'Operation report/comment', 'Other management plan', 'Patient status during transfer to theatre', 'PCI for stent thrombosis', 'PCI hospital outcome', 'Pre discharge instructions', 'Primary Operator GMC number', 'Procedural Complication', 'Procedural device(s) used', 'Procedural device(s) used detail', 'Procedure.1', 'RCA Stenosis (Angio)', 'RCA Stenosis (Post-procedure)', 'RCA Stenosis (Pre-PCI)', 'RCA stenosis comment', 'Second Operator GMC number', 'Status at discharge', 'Therapeutic Interventions undertaken', 'Third Operator GMC number', 'Time to bypass', 'Ventilation.1', 'Vessels attempted', 'Why no IIb/IIIA during procedure.1', 'Athero-thrombus removal device(s) used.1', 'Bifurcation', 'Brachytherapy device(s) used.1', 'Catheter size', 'Chronic occlusion', 'Coronary dominance.1', 'Details of all devices implanted.1', 'Diagnostic device(s) used during procedure.1', 'Distal anastomosis', 'Distal vessel diameter', 'Drug(s) eluted by stent(s).1', 'Emboli protection device(s) used.2', 'Fractional flow reserve', 'Graft conduit', 'Graft lesion position', 'Graft type', 'Guide catheter', 'In graft stenosis', 'Indication for stent', 'Instent stenoses', 'Is there a graft to this vessel', 'Largest balloon diameter', 'Largest stent diameter', 'Length of segment treated', 'Lesion', 'LMS protected', 'Medina Classification', 'Minimal lumen diameter', 'Minimal reference diameter', 'NC post-dilation', 'NC pre-dilation', 'Number of drug-eluting stents used.1', 'Number of stents used', 'Post dilation balloon diameter', 'Post dilation balloon length', 'Pre dilation balloon diameter', 'Pre dilation balloon length', 'Procedural device(s) used.1', 'Procedure.2', 'Proximal vessel diameter', 'Restenosis', 'Stenosis (angio)', 'Stenosis post-PCI', 'Stents used', 'Successful', 'Was a PCI/POBA performed', 'Wire used', 'Unnamed: 244', 'Unnamed: 245', 'Unnamed: 246', 'Unnamed: 247', 'Unnamed: 248', 'Unnamed: 249', 'Unnamed: 250', 'Unnamed: 251', 'Unnamed: 252', 'Unnamed: 253', 'Unnamed: 254'])
+df['TTE1-Proc_Date'] = (df['TTE1_Date'] - df['Date of procedure']).dt.days
+df['TTE2-Proc_Date'] = (df['TTE2_Date'] - df['Date of procedure']).dt.days
+df['TTE2-TTE1_Date'] = (df['TTE2_Date'] - df['TTE1_Date']).dt.days
+#df['CIED_implant-TTE1_Date'] = (df['CIED_implant_date'] - df['TTE1_Date']).dt.days
+#df['CIED_implant-TTE2_Date'] = (df['CIED_implant_date'] - df['TTE2_Date']).dt.days
+
+df['CIED_implant-TTE1_Date'] = np.where(df['CIED_implant_date'] > df['TTE1_Date'], (df['CIED_implant_date'] - df['TTE1_Date']).dt.days, np.nan)
+df['CIED_implant-TTE2_Date'] = np.where(df['CIED_implant_date'] > df['TTE2_Date'], (df['CIED_implant_date'] - df['TTE2_Date']).dt.days, np.nan)
+
+
+# Find the number of unique patients based on the 'Hospital number' column
+ppci_count = df['Hospital Number'].nunique()
+print("Number of patients having ppci for STEMI:", ppci_count)
+
+# Filter the data to find the number of patients with LVSD
+lvsd_count = df['Baseline LVSD'].value_counts().get(1, 0)
+
+print("Number of patients with LVSD:", lvsd_count)
+
+baseline_LVSD = df[df['Baseline LVSD'] == 1]
+
+# Run categorical analysis
+categorical_columns = ['Gender', 'Cardiogenic shock', 'Diabetes type', 'Family history of CAD', 
+           'History of renal disease', 'Patient ethnic group', 'Previous CABG', 'Previous MI', 
+           'Previous PCI', 'Q wave on ECG', 'Smoking history', 'Ventilated preop']
+
+# write the results to a csv file
+with open('analysis_STEMI_LVSD_data_all_NA_171022.csv', 'w') as f:
+    for column in categorical_columns:
+        column_counts = baseline_LVSD[column].value_counts(normalize=True) * 100
+        f.write(column + ':\n')
+        f.write(column_counts.to_string() + '\n\n')
+
+# Run continuous analysis
+continuous_columns = ['Age at intervention', 'Body Mass Index', 'TTE1-Proc_Date', 'TTE2-Proc_Date','TTE2-TTE1_Date', 'CIED_implant-TTE1_Date', 'CIED_implant-TTE2_Date']
+results = []
+for column in continuous_columns:
+    data = baseline_LVSD[column]
+    mean_data = data.mean()
+    std_data = data.std()
+    median_data = data.median()
+    lower_quartile_data = data.quantile(0.25)
+    upper_quartile_data = data.quantile(0.75)
+    k_data = kurtosis(data)
+    if k_data >= -1 and k_data <= 1:
+        result = "Column: {}, mean = {:.2f} +/- {:.2f}".format(column, mean_data, std_data)
+    else:
+        result = "Column: {}, median = ({:.2f}, {:.2f}, {:.2f})".format(column, lower_quartile_data, median_data, upper_quartile_data)
+    results.append(result)
+
+# write the results to a csv file
+with open('analysis_STEMI_LVSD_data_all_NA_171022.csv', 'a') as file:
+    for result in results:
+        file.write(result + '\n')
+
+#responder vs nonresponder analysis
+nonresponder_df = baseline_LVSD[baseline_LVSD['RESPONSE_1=nonresponder_2=improver)'] == 1]
+improver_df = baseline_LVSD[baseline_LVSD['RESPONSE_1=nonresponder_2=improver)'] == 2]
+no_FU_echo_df = baseline_LVSD[baseline_LVSD['RESPONSE_1=nonresponder_2=improver)'].isnull()]
+
+nonresponder_count = nonresponder_df.shape[0]
+improver_count = improver_df.shape[0]
+no_FU_echo_count = no_FU_echo_df.shape[0]
+
+print("Number of rows in nonresponder_df:", nonresponder_count)
+print("Number of rows in improver_df:", improver_count)
+print("Number of rows in no_FU_echo_df:", no_FU_echo_count)
+
+count_df = pd.DataFrame({'Nonresponder count': [nonresponder_count],
+                        'Improver count': [improver_count],
+                        'No Follow-Up Echo count': [no_FU_echo_count]})
+
+with open('responder_vs_nonresponder_analysis.csv', 'a') as f:
+    count_df.to_csv(f, header=True, index=False)
+
+# Run categorical analyses
+results = pd.DataFrame(columns=['Variable', 'Contingency Table', 'P-Value'])
+
+for column in categorical_columns:
+    contingency_table = pd.crosstab(baseline_LVSD[column], baseline_LVSD['RESPONSE_1=nonresponder_2=improver)'])
+    chi2, p, dof, expected = chi2_contingency(contingency_table)
+    results = results.append({'Variable': column, 'Contingency Table': contingency_table.to_string(), 'P-Value': p}, ignore_index=True)
+
+# write the results to a csv file
+results.to_csv('responder_vs_nonresponder_analysis.csv', index=False, mode ='a')
+
+
+# Run continuous analysis
+header = ['Variable', 'Test', 'mean_nonresponder', 'std_nonresponder', 'median_nonresponder', 'lower_quartile_nonresponder', 'upper_quartile_nonresponder', 'mean_improver', 'std_improver', 'median_improver', 'lower_quartile_improver', 'upper_quartile_improver', 'p_value']
+rows = []
+for column in continuous_columns:
+    data_nonresponder = nonresponder_df[column].dropna()
+    mean_nonresponder = data_nonresponder.mean()
+    std_nonresponder = data_nonresponder.std()
+    median_nonresponder = data_nonresponder.median()
+    lower_quartile_nonresponder = data_nonresponder.quantile(0.25)
+    upper_quartile_nonresponder = data_nonresponder.quantile(0.75)
+    
+    data_improver = improver_df[column].dropna()
+    mean_improver = data_improver.mean()
+    std_improver = data_improver.std()
+    median_improver = data_improver.median()
+    lower_quartile_improver = data_improver.quantile(0.25)
+    upper_quartile_improver = data_improver.quantile(0.75)
+    
+    if len(data_nonresponder) > 0 and len(data_improver) > 0:
+        k = stats.kurtosis(data_nonresponder, fisher=False)
+        if k < 3:
+            test = 'mannwhitneyu'
+            p_value = stats.mannwhitneyu(data_nonresponder, data_improver, alternative='two-sided')[1]
+        else:
+            test = 'ttest'
+            p_value = stats.ttest_ind(data_nonresponder, data_improver, equal_var=False)[1]
+        
+        row = [column, test, mean_nonresponder, std_nonresponder, median_nonresponder, lower_quartile_nonresponder, upper_quartile_nonresponder, mean_improver, std_improver, median_improver, lower_quartile_improver, upper_quartile_improver, p_value]
+        rows.append(row)
+
+# write the results to a csv file
+result_df = pd.DataFrame(rows, columns=header)
+result_df.to_csv("responder_vs_nonresponder_analysis.csv", index=False, mode ='a')
+
+#non-responder cohort breakdown
+
+# Calculate the summary statistics for CIED_implant-TTE1_Date
+cied_implant_tte1_date_summary = nonresponder_df['CIED_implant-TTE1_Date'].describe()
+cied_implant_tte1_date_summary.name = 'CIED_implant-TTE1_Date (nonresponder_df)'
+cied_implant_tte1_date_summary.to_csv('responder_vs_nonresponder_analysis.csv', mode='a', header=True, index=True)
+
+# Calculate the summary statistics for CIED_implant-TTE2_Date
+cied_implant_tte2_date_summary = nonresponder_df['CIED_implant-TTE2_Date'].describe()
+cied_implant_tte2_date_summary.name = 'CIED_implant-TTE2_Date (nonresponder_df)'
+cied_implant_tte2_date_summary.to_csv('responder_vs_nonresponder_analysis.csv', mode='a', header=True, index=True)
+
+
+no_ICD_reasons = nonresponder_df['Reason for no ICD'].dropna().value_counts()
+print(no_ICD_reasons)
+
+device_counts = nonresponder_df['Device'].value_counts(sort=False)
+device_counts_total = nonresponder_df['Device'].count()
+device_percent = device_counts/device_counts_total * 100
+
+device_result = pd.concat([device_counts, device_percent], axis=1)
+device_result.reset_index(inplace=True)
+device_result.columns = ['Device', 'n', '%']
+print(device_result)
+
+# Create the groups
+nonresponder_df_copy = nonresponder_df.copy()
+nonresponder_df_copy.loc[(nonresponder_df_copy['Device'].isin([0, 'VVI(R)', 'DDD(R)', 'ILR (Interner Loop-Recorder)' , 'PPM', 'CRT-P'])), 'Device_group'] = 'no_defib'
+nonresponder_df_copy.loc[(nonresponder_df_copy['Device'].isin(['ICD-VR', 'ICD-DR', 'ICD-SQ', 'CRT-D', 'ICD'])), 'Device_group'] = 'defib'
+
+# Calculate the count and percentage for each group
+device_group_count = nonresponder_df_copy['Device_group'].value_counts()
+device_group_percent = (nonresponder_df_copy['Device_group'].value_counts() / nonresponder_df_copy['Device_group'].value_counts().sum()) * 100
+
+device_group_result = pd.concat([device_group_count, device_group_percent], axis=1)
+device_group_result.reset_index(inplace=True)
+device_group_result.columns = ['Defib status', 'n', '%']
+print(device_group_result)
+
+device_group_result.to_csv("responder_vs_nonresponder_analysis.csv", index=True, mode ='a')
+device_result.to_csv("responder_vs_nonresponder_analysis.csv", index=False, mode ='a')
+no_ICD_reasons.to_csv("responder_vs_nonresponder_analysis.csv", index=True, mode ='a')
+
+#KM curve of ICD implant
+# Create a new column to indicate whether the device has failed
+
+# Filter out the rows with missing values in the event column
+nonresponder_df_copy = nonresponder_df.copy()
+nonresponder_df_copy['event'].fillna(value=0, inplace=True)
+
+# Get the latest event date
+latest_event_date = nonresponder_df_copy['CIED_implant-TTE1_Date'].max()
+
+# Replace NaN values in the CIED_implant-TTE2_Date column with the latest event date
+nonresponder_df_copy['CIED_implant-TTE1_Date'].fillna(value=latest_event_date, inplace=True)
+
+# Fit the Kaplan-Meier model
+kmf = KaplanMeierFitter()
+kmf.fit(nonresponder_df_copy['CIED_implant-TTE1_Date'], event_observed=nonresponder_df_copy['event'], label='Kaplan-Meier Estimate')
+
+# Plot the curve with 6-monthly intervals
+ax = kmf.plot(ci_show=False, figsize=(10,6))
+ax.set_xlim(left=0)
+ax.set_xlabel('Time from first TTE to implant (months)')
+ax.set_xticks(np.arange(0, ax.get_xlim()[1], 180))
+ax.set_xticklabels(np.arange(0, ax.get_xlim()[1]/30, 6))
+plt.show()
+
+
+# Create a new variable that represents 6-monthly intervals
+nonresponder_df_copy['interval'] = (nonresponder_df_copy['CIED_implant-TTE2_Date'] - nonresponder_df_copy['CIED_implant-TTE1_Date']) / np.timedelta64(6, 'M')
+
+# Fit the Kaplan-Meier model
+kmf = KaplanMeierFitter()
+kmf.fit(nonresponder_df_copy['interval'], event_observed=nonresponder_df_copy['event'], label='Kaplan-Meier Estimate')
+
+# Create a table of number at risk
+n_at_risk = kmf.event_table.iloc[:,2]
+
+# Print the table
+print(n_at_risk)
