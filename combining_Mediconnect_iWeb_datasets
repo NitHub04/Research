@@ -1,0 +1,43 @@
+
+import pandas as pd
+
+# Load the Excel file into a Pandas ExcelFile object
+file = pd.ExcelFile('HCM_VLOOKUPinMediconnect.xlsx')
+
+# Load each sheet into its own dataframe
+hcm_df = file.parse('HCM_from_iWeb')
+mc_implant_df = file.parse('Mediconnect implant DB')
+mc_fup_df = file.parse('Mediconnect F-Up DB')
+
+# Define a function to perform the VLOOKUP-style search and append the matching rows
+def lookup_and_append(df1, df2):
+    # Create a dictionary to store the earliest row index for each ID in df2
+    id_to_index = {}
+    for i in range(len(df2)):
+        id_ = df2.loc[i, 'ID']
+        if id_ not in id_to_index:
+            id_to_index[id_] = i
+
+    # Iterate through the rows in df1 and look up the ID in df2
+    matches = []
+    for i in range(len(df1)):
+        id_ = df1.loc[i, 'ID']
+        if id_ in id_to_index:
+            index = id_to_index[id_]
+            match = list(df2.loc[index, :])
+            match.extend(list(df1.loc[i, :])[1:])
+            matches.append(match)
+
+    # Create a new dataframe with the matched rows
+    matched_df = pd.DataFrame(matches, columns=df2.columns.tolist() + df1.columns.tolist()[1:])
+    return matched_df
+
+# Perform the VLOOKUP-style search and append the matching rows
+mc_implant_matched = lookup_and_append(hcm_df, mc_implant_df)
+mc_fup_matched = lookup_and_append(hcm_df, mc_fup_df)
+
+# Create a new sheet in the Excel file with the matched data
+writer = pd.ExcelWriter('HCM_VLOOKUPinMediconnect.xlsx', engine='openpyxl')
+mc_implant_matched.to_excel(writer, sheet_name='Mediconnect implant DB_matched', index=False)
+mc_fup_matched.to_excel(writer, sheet_name='Mediconnect F-Up DB_matched', index=False)
+writer.save()
