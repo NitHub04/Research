@@ -1,0 +1,78 @@
+
+import pandas as pd
+
+# Load the HCM_AF_CIED_data.xlsx Excel file into a Pandas ExcelFile object
+file1 = pd.ExcelFile('HCM_AF_CIED_data.xlsx')
+
+# Load the Data_table sheet into a dataframe
+data_table_df = file1.parse('Data_table')
+data_table_df['ID'] = data_table_df['ID'].astype(str)  # Convert ID to string
+
+# Load the AFCA and HCM Barts master.xlsx Excel file into a Pandas ExcelFile object
+file2 = pd.ExcelFile('AFCA and HCM Barts master.xlsx')
+
+# Load the HCM_filtered sheet from the AFCA and HCM Barts master.xlsx Excel file into a dataframe
+hcm_filtered_df = file2.parse('HCM_filtered')
+hcm_filtered_df['ID'] = hcm_filtered_df['ID'].astype(str)  # Convert ID to string
+
+# Load the Clinical_Rangeena_CRS sheet from the AFCA and HCM Barts master.xlsx Excel file into a dataframe
+clinical_rangeena_crs_df = file2.parse('Clinical_Rangeena_CRS')
+clinical_rangeena_crs_df['ID'] = clinical_rangeena_crs_df['ID'].astype(str)  # Convert ID to string
+
+# Load the AFCA_HCM_2022 sheet from the AFCA_HCM_Bartsonly_Finaldataset_2022.xlsx Excel file into a dataframe
+file3 = pd.ExcelFile('AFCA_HCM_Bartsonly_Finaldataset_2022.xlsx')
+afca_hcm_2022_df = file3.parse('AFCA_HCM_2022')
+afca_hcm_2022_df['ID'] = afca_hcm_2022_df['ID'].astype(str)  # Convert ID to string
+
+# Perform the VLOOKUP-style search and append the matching rows with additional columns from AFCA_HCM_2022
+matches = []
+for i in range(len(data_table_df)):
+    id_ = data_table_df.loc[i, 'ID']
+    match = hcm_filtered_df[hcm_filtered_df['ID'] == id_]
+    if len(match) > 0:
+        # Get the earliest row in the case of duplicates
+        earliest_row = match.sort_values('DoB').iloc[0]
+        dob = earliest_row['DoB']
+        # Look up the corresponding Weight and Height in the Clinical_Rangeena_CRS dataframe
+        crs_match = clinical_rangeena_crs_df[clinical_rangeena_crs_df['ID'] == id_]
+        if len(crs_match) > 0:
+            weight = crs_match.iloc[0]['Weight']
+            height = crs_match.iloc[0]['Height']
+            cied_date = crs_match.iloc[0]['Date of first CIED implant']
+            ht = crs_match.iloc[0]['HT (0= No, 1= Yes)']
+            echo_date = crs_match.iloc[0]['Date of last Echo']
+            echo_rhythm = crs_match.iloc[0]['Rhythm during echo']
+            prev_cardiac_surg = crs_match.iloc[0]['Previous Cardiac Surgery']
+            hcm_type = crs_match.iloc[0]['Type of HCM']
+            aads_6_months_post_ablation = crs_match.iloc[0]['6 months after the AF ablation, what AADs are they on?']
+        else:
+            weight = None
+            height = None
+            cied_date = None
+            ht = None
+            prev_cardiac_surg = None
+            aads_6_months_post_ablation = None
+        row = list(data_table_df.loc[i, :])
+        row.append(dob)
+        row.append(weight)
+        row.append(height)
+        afca_hcm_match = afca_hcm_2022_df[afca_hcm_2022_df['ID'] == id_]
+        if len(afca_hcm_match) > 0:
+            af_type = afca_hcm_match.iloc[0]['AF_type']
+            if af_type == 1:
+                af_type = 2
+            elif af_type == 2:
+                af_type = 3
+            elif af_type == 3:
+                af_type = 5
+            row.append(af_type)
+        row.append(cied_date)
+        row.append(ht)
+        row.append(echo_date)
+        row.append(echo_rhythm)
+        row.append(prev_cardiac_surg)
+        row.append(hcm_type)
+        row.append(aads_6_months_post_ablation)
+        matches.append(row)
+
+matched_df = pd.DataFrame(matches, columns=data_table_df.columns.tolist() + ['DoB', 'Weight', 'Height', 'AF_Type', 'Date of first CIED implant', 'HT (0= No, 1= Yes)','Date of last Echo','Rhythm during echo', 'Previous Cardiac Surgery', 'HCM type', '6 months after the AF ablation, what AADs are they on?'])
